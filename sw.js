@@ -1,6 +1,6 @@
 // App-shell cache; API calls always go to the network.
-const CACHE = "sampler-v5";
-const SHELL = ["./", "app.js?v=5", "style.css?v=5", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "sampler-v6";
+const SHELL = ["./", "app.js?v=6", "style.css?v=6", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", (e) => {

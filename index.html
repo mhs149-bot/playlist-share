@@ -13,7 +13,7 @@
 <link id="manifest" rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 <style>
 #share .sub{color:var(--muted);margin:0 0 14px;font-size:14px}
 #share button,#share a.btn{font:inherit;border:none;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -53,13 +53,19 @@
       <svg viewBox="0 0 120 120" class="ring"><circle cx="60" cy="60" r="54" class="track"/><circle id="prog" cx="60" cy="60" r="54" class="bar"/></svg>
       <span id="recLabel">Tap to<br>listen</span>
     </button>
-    <button id="cancel" class="cancel hidden" aria-label="Cancel listening">✕ Cancel</button>
     <p id="hint" class="hint">Records ~10 s, identifies the song, adds it to the playlists below.</p>
     <label class="upload">or <input id="file" type="file" accept="audio/*,video/*"> <span>use an audio file</span></label>
     <label class="toggle"><input id="phoneMic" type="checkbox" checked> <span><b>Use phone mic (keep car audio playing)</b><br><small>Records with the phone's own mic, not the car's hands-free mic, so Bluetooth music doesn't pause.</small></span></label>
-    <label class="toggle"><input id="autoListen" type="checkbox" checked> <span><b>Start listening when opened</b><br><small>Opening the app from the home screen starts listening right away, using your last playlists.</small></span></label>
+    <label class="toggle"><input id="autoListen" type="checkbox"> <span><b>Start listening when opened</b><br><small>Off: the icon just opens the app. For one-tap listening, long-press the app icon and use (or drag out) <b>Listen now</b>.</small></span></label>
     <p class="note">If music still pauses: set this phone's Bluetooth in the car to <b>media audio only</b> (calls/phone audio off), then tap Listen again.</p>
   </section>
+
+  <div id="listenOverlay" class="listen-ov hidden" role="dialog" aria-label="Listening">
+    <div class="pulse"><span class="halo"></span><span class="halo h2"></span><img id="pulseIcon" src="icons/maskable-512.png" alt="Listening – tap to finish early"></div>
+    <div id="ovLabel" class="ov-label">Listening…</div>
+    <div class="ov-sub">Tap the icon to finish early</div>
+    <button id="cancel" class="cancel" aria-label="Cancel listening">✕ Cancel</button>
+  </div>
 
   <section>
     <h2>Add to <small id="plSource"></small></h2>
@@ -98,7 +104,7 @@
 
 <div id="toast" class="toast hidden"></div>
 <div id="stoast"></div>
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
 (() => {
   const has = !!window.SAMPLER_HAS_KEY;
@@ -110,12 +116,12 @@
   }
   if (!has) { tabs.classList.add("hidden"); show("share"); return; }     // visitors: Share only
   tabs.addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) show(b.dataset.tab); });
-  // app.js tidies the URL (drops ?autolisten) before this runs, so read the original navigation URL
+  // app.js tidies the URL (drops ?action) before this runs, so read the original navigation URL
   const nav = performance.getEntriesByType("navigation")[0] || {};
   let launchUrl; try { launchUrl = new URL(nav.name || location.href); } catch (_) { launchUrl = location; }
-  const launch = new URLSearchParams(launchUrl.search).get("autolisten") === "1" ||
-    ((matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) && nav.type === "navigate");
-  show(location.hash === "#share" ? "share" : launch ? "listen" : (localStorage.getItem("app.tab") || "listen"));
+  const action = new URLSearchParams(launchUrl.search).get("action");   // manifest shortcuts
+  show(action === "share" || location.hash === "#share" ? "share"
+       : action === "listen" ? "listen" : (localStorage.getItem("app.tab") || "listen"));
 })();
 </script>
 <script>

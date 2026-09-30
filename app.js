@@ -1,5 +1,5 @@
 /* Song Sampler PWA */
-const APP_VERSION = "5";
+const APP_VERSION = "6";
 (() => {
   const $ = (s) => document.querySelector(s);
   const SECONDS = 10;
@@ -200,12 +200,59 @@ const APP_VERSION = "5";
   function setProgress(f) { prog.style.strokeDashoffset = String(CIRC * (1 - f)); }
 
   const cancelBtn = $("#cancel");
+  const overlay = $("#listenOverlay"), ovLabel = $("#ovLabel"), pulseIcon = $("#pulseIcon");
   let cancelled = false;
+  // Big pulsing app icon while listening. The pulse follows the mic level (Web Audio analyser,
+  // not connected to the speakers); the CSS animation is the fallback when that isn't available.
+  let meter = null;
+  function startMeter() {
+    stopMeter();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !stream) return;
+    try {
+      const ctx = new AC();
+      const src = ctx.createMediaStreamSource(stream);
+      const an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
+      const buf = new Uint8Array(an.fftSize);
+      let lvl = 0, raf = 0;
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let sum = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+        const rms = Math.sqrt(sum / buf.length);
+        // no AGC on the mic, so car music is quiet: sqrt curve (0.01 -> .22, 0.05 -> .5, 0.2 -> 1)
+        lvl = Math.max(Math.min(1, Math.sqrt(rms) * 2.2), lvl * 0.85);   // fast attack, slow decay
+        overlay.style.setProperty("--lvl", lvl.toFixed(3));
+        raf = requestAnimationFrame(tick);
+      };
+      overlay.classList.add("metered");
+      tick();
+      meter = { ctx, stop() { cancelAnimationFrame(raf); try { src.disconnect(); } catch (_) {} ctx.close().catch(() => {}); } };
+    } catch (_) { meter = null; }
+  }
+  function stopMeter() {
+    if (meter) { meter.stop(); meter = null; }
+    overlay.classList.remove("metered"); overlay.style.setProperty("--lvl", "0");
+  }
+  function setBadge(on) {                        // app-icon badge while listening, where supported
+    try {
+      if (on && navigator.setAppBadge) navigator.setAppBadge().catch(() => {});
+      else if (!on && navigator.clearAppBadge) navigator.clearAppBadge().catch(() => {});
+    } catch (_) {}
+  }
+  function showOverlay(on, text) {
+    overlay.classList.toggle("hidden", !on);
+    document.body.classList.toggle("listening", on);
+    if (text) ovLabel.innerHTML = text;
+    setBadge(on);
+    if (!on) stopMeter();
+  }
   function showCapturing(on) {
-    cancelBtn.classList.toggle("hidden", !on);
+    showOverlay(on);
     btn.classList.toggle("recording", on);
+    if (on) { ovLabel.innerHTML = `Listening… <b>${SECONDS}s</b>`; startMeter(); }
     if (!on) { setProgress(0); label.innerHTML = IDLE_LABEL; }
   }
+  pulseIcon.addEventListener("click", () => { if (rec) stop(); });   // tap the icon = finish early
 
   async function start(opts = {}) {
     if (busy) return;
@@ -218,7 +265,7 @@ const APP_VERSION = "5";
     }
     cancelled = false;
     label.innerHTML = "Starting mic…";
-    cancelBtn.classList.remove("hidden");
+    showOverlay(true, "Starting mic…");
     try { await openMic(); }
     catch (e) {
       releaseMic(); showCapturing(false);
@@ -247,6 +294,7 @@ const APP_VERSION = "5";
       const el = (Date.now() - t0) / 1000;
       setProgress(Math.min(1, el / SECONDS));
       label.innerHTML = `Listening…<br>${Math.max(0, Math.ceil(SECONDS - el))}s`;
+      ovLabel.innerHTML = `Listening… <b>${Math.max(0, Math.ceil(SECONDS - el))}s</b>`;
       if (el >= SECONDS) stop();
     }, 200);
   }
@@ -258,7 +306,7 @@ const APP_VERSION = "5";
   }
   // Cancel: stop instantly, release the mic, throw the audio away.
   function cancel(silent = false) {
-    const active = !!rec || !cancelBtn.classList.contains("hidden");
+    const active = !!rec || !overlay.classList.contains("hidden");
     if (!active) { releaseMic(); return; }              // not capturing (idle / identifying)
     cancelled = true;
     clearInterval(timer);
@@ -379,38 +427,43 @@ const APP_VERSION = "5";
   setInterval(() => { if (!document.hidden && !busy && !rec) loadStatus(); }, 60000);
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
-  // --- auto-listen on launch ------------------------------------------------------
-  // Home-screen launch (?autolisten=1 in the manifest start_url, or any fresh standalone
-  // launch) starts listening right away with the remembered playlist(s), if the mic
-  // permission is already granted. Otherwise the big button stays as the fallback.
+  // --- launching ---------------------------------------------------------------
+  // Tapping the home-screen icon just opens the app (start_url has no action).
+  // The "Listen now" shortcut (long-press the icon, or drag it to the home screen as its own
+  // button) opens ?action=listen, which starts listening right away with the remembered
+  // playlist(s). The old ?autolisten=1 start_url (installs from before v6) is treated as a
+  // plain open. Optional setting "Start listening when opened" (default OFF) restores the old
+  // behaviour for plain launches.
   const LS_AUTO = "sampler.autoListen";
+  if (localStorage.getItem("sampler.autoListenV6") !== "1") {   // one-time migration: off
+    localStorage.setItem(LS_AUTO, "0"); localStorage.setItem("sampler.autoListenV6", "1");
+  }
   const autoToggle = $("#autoListen");
-  autoToggle.checked = localStorage.getItem(LS_AUTO) !== "0";         // default ON
+  autoToggle.checked = localStorage.getItem(LS_AUTO) === "1";          // default OFF
   autoToggle.addEventListener("change", () => localStorage.setItem(LS_AUTO, autoToggle.checked ? "1" : "0"));
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const navType = (performance.getEntriesByType("navigation")[0] || {}).type;
-  const launchAuto = qs.get("autolisten") === "1" || (standalone && navType === "navigate");
-  if (qs.has("autolisten") || qs.has("k")) history.replaceState(null, "", location.pathname);   // tidy URL, no re-trigger on reload
+  const listenNow = qs.get("action") === "listen";                         // "Listen now" shortcut
+  const launchAuto = listenNow || (autoToggle.checked && standalone && navType === "navigate");
+  if (qs.has("autolisten") || qs.has("k") || qs.has("action"))
+    history.replaceState(null, "", location.pathname);                    // tidy URL, no re-trigger on reload
 
-  async function micGranted() {
-    try { return (await navigator.permissions.query({ name: "microphone" })).state === "granted"; }
-    catch (_) { return false; }
+  async function micState() {
+    try { return (await navigator.permissions.query({ name: "microphone" })).state; }
+    catch (_) { return "unknown"; }
   }
-  async function autoListen(reason) {
-    if (!autoToggle.checked || busy || rec) return;
-    if (!selected.size) { $("#hint").textContent = "Pick a playlist below – next launch starts listening automatically."; return; }
-    if (!(await micGranted())) { $("#hint").textContent = "Tap to listen (allow the mic once – after that it starts on launch)."; return; }
+  async function autoListen(explicit) {
+    if (busy || rec) return;
+    if (!selected.size) { $("#hint").textContent = "Pick a playlist below, then use “Listen now” again."; return; }
+    const st = await micState();
+    // explicit "Listen now" may ask for the mic; a plain launch only starts if already allowed
+    if (st === "denied" || (!explicit && st !== "granted")) {
+      $("#hint").textContent = "Tap to listen (allow the mic once)."; return;
+    }
     try { await start({ auto: true }); }
-    catch (e) { $("#hint").textContent = "Couldn't auto-start the mic – tap to listen."; }
+    catch (e) { $("#hint").textContent = "Couldn't start the mic – tap to listen."; }
   }
-
-  let hiddenAt = 0;
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { hiddenAt = Date.now(); return; }
-    // Android keeps the app alive: re-opening it from the icon after a while = a new launch
-    if (standalone && hiddenAt && Date.now() - hiddenAt > 60000) autoListen("resume");
-  });
 
   loadStatus(); loadHistory();
-  loadPlaylists().then(() => { if (launchAuto) autoListen("launch"); });
+  loadPlaylists().then(() => { if (launchAuto) autoListen(listenNow); });
 })();
