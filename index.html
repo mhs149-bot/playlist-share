@@ -1,73 +1,147 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f0f14">
-<title>Mike's Playlists</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mike's Music">
+<title>Mike's Music</title>
 <meta name="description" content="Michael Skellie's YouTube Music playlists">
 <meta property="og:title" content="Mike's Playlists">
 <meta property="og:description" content="Tap to listen or text one to a friend.">
+<link id="manifest" rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css?v=5">
 <style>
-:root{--bg:#0f0f14;--card:#1b1b24;--fg:#f3f3f6;--mut:#9a9aa8;--acc:#ff3b5c}
-*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-main{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 14px calc(env(safe-area-inset-bottom) + 40px)}
-h1{font-size:26px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 16px;font-size:14px}
-button,a.btn{font:inherit;border:none;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.all{width:100%;padding:14px;background:#fff;color:#111;font-weight:700;font-size:17px;margin-bottom:18px}
-.card{background:var(--card);border-radius:16px;padding:12px;margin-bottom:12px}
-.top{display:flex;gap:12px;align-items:center;color:inherit;text-decoration:none}
-.top img{width:72px;height:72px;border-radius:10px;object-fit:cover;background:#2a2a35;flex:none}
-.name{font-weight:700;font-size:18px}.meta{color:var(--mut);font-size:13px}
-.vibe{font-size:14px;margin-top:3px;color:#d6d6de}
-.fav{font-size:11px;color:var(--acc);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
-.row{display:flex;gap:8px;margin-top:12px}
-.text{flex:1;padding:14px;background:var(--acc);color:#fff;font-weight:700;font-size:17px}
-.copy,.open{padding:14px 16px;background:#2c2c38;color:var(--fg);font-weight:600}
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
-.toast.on{opacity:1}
-footer{color:var(--mut);font-size:12px;text-align:center;margin-top:20px}
-</style></head><body><main>
-<h1>Mike's Playlists</h1>
-<p class="sub">Tap a playlist to listen on YouTube Music, or text it to a friend.</p>
-<button class="all" id="all">📤 Share all playlists</button>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLFraQUBf1D6c" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/yJ-jyMwntHfW6FP6KGF4EM75nD0HOuhhRslbaH4WQDk4sInFsisOTerFvt2H2QXNq_buJMHwtFw=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">UberThumbsUp Fast</div><div class="meta">2,530 tracks · 161+ hours</div><div class="vibe">Crowd-pleasers ~100+ BPM</div></div></a><div class="row"><button class="text" data-a="text" data-i="0">💬 Text it</button><button class="copy" data-a="copy" data-i="0">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLM5kUA9ylU6w" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/aGf--Vu_x8Vkr23imZV3_UNwIRCDXu7cXMcvzizS_LWeOmiY11-bysu3p2hJ3jKrTDNnCQH5PQQ=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">Uber Classical</div><div class="meta">36 tracks · 4 hours, 43 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-i="1">💬 Text it</button><button class="copy" data-a="copy" data-i="1">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/bL03B_d31CII18HYw-in3P4JZ0POV5h15pIBfJCtz_G9kJLDBiXkbcfdF2kpv-TFK2rAmDKJiYA9=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">True thumbs up</div><div class="meta">575 tracks · 38+ hours</div><div class="vibe">Finally listening to some lyrics but always great melodies and harmonies</div></div></a><div class="row"><button class="text" data-a="text" data-i="2">💬 Text it</button><button class="copy" data-a="copy" data-i="2">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/7gAPb2mjqRTeXB-j2d8thholZDkpDGwy56iXmihZXyxmurdeneR6lCG8MZkwlbZU4lCKdv7wHTWx213q=w544-h544-s-l90-rj" alt="" loading="lazy"><div><div class="name">UberThumbsUp</div><div class="meta">3,060 tracks · 195+ hours</div><div class="vibe">Combined thumbs-up playlists</div></div></a><div class="row"><button class="text" data-a="text" data-i="3">💬 Text it</button><button class="copy" data-a="copy" data-i="3">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLCYm7t5kgJWU" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/XPYRJnBCQYwXHehq-qaPKHJBpxykmMsXh3eYEiB4Cq2LcN3YhNco-nC-IxEPi3V-k5_GusBPCvR6nzA=w544-h544-s-l90-rj" alt="" loading="lazy"><div><div class="name">UberThumbsUp Slow</div><div class="meta">554 tracks · 37+ hours</div><div class="vibe">Ballads, chill, soft — under 100 BPM</div></div></a><div class="row"><button class="text" data-a="text" data-i="4">💬 Text it</button><button class="copy" data-a="copy" data-i="4">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLaxvLAb-AO3c" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/Va5aomd2x6-7XyVksozRim9ediUL5Zfwm01j14HtU9P8ZA8zgrOGqzwYASAlJXHjdAdHtmJteg=s1200" alt="" loading="lazy"><div><div class="name">Christmas</div><div class="meta">21 tracks · 1 hour, 2 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-i="5">💬 Text it</button><button class="copy" data-a="copy" data-i="5">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/8xrgvooknF4szrETGL3C6XYi46R0ZVeZdaHiB1UhRN2mriU1f77thsQLvQYH5Hu7LRUKNA_fXDs=s1200" alt="" loading="lazy"><div><div class="name">Arthur</div><div class="meta">20 tracks · 1 hour, 22 minutes</div><div class="vibe">Kids in the chorus!</div></div></a><div class="row"><button class="text" data-a="text" data-i="6">💬 Text it</button><button class="copy" data-a="copy" data-i="6">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/bnoRatC_BgrTMWbXxjplTabRmm6FcslEM3H5akKdQtciNC8eVs5vA3Dy5SDF6KV27NzRjzORddg=s1200" alt="" loading="lazy"><div><div class="name">semi</div><div class="meta">6 tracks · 27 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-i="7">💬 Text it</button><button class="copy" data-a="copy" data-i="7">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/wzbW0SdLV-4PkwG0jhasMDB_j6ZMx8QBs73zIlHuDMjXzse4-28tf0eeLIb35AEMDvumpYkpAiI=s1200" alt="" loading="lazy"><div><div class="name">parade</div><div class="meta">5 tracks · 21 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-i="8">💬 Text it</button><button class="copy" data-a="copy" data-i="8">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/uzR5jM9UeJA/hq720.jpg?sqp=-oaymwEKCNUGEN8DIABIWg&amp;rs=AMzJL3kUx_s355cUA3QWNadf9tZMjObW7g" alt="" loading="lazy"><div><div class="name">Australia trip music</div><div class="meta">4 tracks · 13 minutes, 36 seconds</div></div></a><div class="row"><button class="text" data-a="text" data-i="9">💬 Text it</button><button class="copy" data-a="copy" data-i="9">Copy</button></div></div>
-<div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLJ1ao64r-Igw" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/FAx67lc_9jNpGOZhJ3G9u0Sa1p7_bcQvgFnPoJl_PRyXM_5BkjAKF6LP_UI-YU2TcEeQLoHnzMAK=s1200" alt="" loading="lazy"><div><div class="name">Comedy</div><div class="meta">4 tracks · 11 minutes, 46 seconds</div></div></a><div class="row"><button class="text" data-a="text" data-i="10">💬 Text it</button><button class="copy" data-a="copy" data-i="10">Copy</button></div></div>
-<footer>Michael Skellie on YouTube Music</footer>
+#share .sub{color:var(--muted);margin:0 0 14px;font-size:14px}
+#share button,#share a.btn{font:inherit;border:none;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#share .all{width:100%;padding:14px;background:#fff;color:#111;font-weight:700;font-size:17px;margin-bottom:16px}
+#share .card{display:block;background:var(--card);border-radius:16px;padding:12px;margin-bottom:12px}
+#share .top{display:flex;gap:12px;align-items:center;color:inherit;text-decoration:none}
+#share .top img{width:72px;height:72px;border-radius:10px;object-fit:cover;background:#2a2a35;flex:none}
+#share .name{font-weight:700;font-size:18px}#share .meta{color:var(--muted);font-size:13px}
+#share .vibe{font-size:14px;margin-top:3px;color:#d6d6de}
+#share .fav{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+#share .row{display:flex;gap:8px;margin-top:12px}
+#share .text{flex:1;padding:14px;background:var(--accent);color:#fff;font-weight:700;font-size:17px}
+#share .copy{padding:14px 16px;background:#2c2c38;color:var(--fg);font-weight:600}
+.tabs{display:flex;gap:6px;padding:0 16px 10px;max-width:560px;margin:0 auto}
+.tabs button{flex:1;padding:12px;border-radius:12px;border:1px solid #333;background:var(--card);color:var(--fg);font-weight:700;font-size:16px}
+.tabs button.on{background:var(--accent);border-color:var(--accent)}
+.panel.hidden{display:none}
+#stoast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:11}
+#stoast.on{opacity:1}
+.setup{background:var(--card);border-radius:12px;padding:12px;font-size:14px;color:var(--muted);margin:12px 16px}
+</style>
+<script>window.SAMPLER_REMOTE = true;</script>
+</head>
+<body>
+<header>
+  <h1>Mike's Music</h1>
+  <button id="refresh" class="ghost" title="Refresh">↻</button>
+</header>
+<nav id="tabs" class="tabs"><button data-tab="listen">🎙 Listen</button><button data-tab="share">🔗 Share</button></nav>
+
+<div id="listen" class="panel">
+<div id="banner" class="banner hidden"></div>
+
+<main>
+  <section class="rec">
+    <button id="rec" class="rec-btn" aria-label="Record and identify">
+      <svg viewBox="0 0 120 120" class="ring"><circle cx="60" cy="60" r="54" class="track"/><circle id="prog" cx="60" cy="60" r="54" class="bar"/></svg>
+      <span id="recLabel">Tap to<br>listen</span>
+    </button>
+    <button id="cancel" class="cancel hidden" aria-label="Cancel listening">✕ Cancel</button>
+    <p id="hint" class="hint">Records ~10 s, identifies the song, adds it to the playlists below.</p>
+    <label class="upload">or <input id="file" type="file" accept="audio/*,video/*"> <span>use an audio file</span></label>
+    <label class="toggle"><input id="phoneMic" type="checkbox" checked> <span><b>Use phone mic (keep car audio playing)</b><br><small>Records with the phone's own mic, not the car's hands-free mic, so Bluetooth music doesn't pause.</small></span></label>
+    <label class="toggle"><input id="autoListen" type="checkbox" checked> <span><b>Start listening when opened</b><br><small>Opening the app from the home screen starts listening right away, using your last playlists.</small></span></label>
+    <p class="note">If music still pauses: set this phone's Bluetooth in the car to <b>media audio only</b> (calls/phone audio off), then tap Listen again.</p>
+  </section>
+
+  <section>
+    <h2>Add to <small id="plSource"></small></h2>
+    <div id="chips" class="chips"><span class="muted">Loading playlists…</span></div>
+  </section>
+
+  <section id="resultWrap" class="hidden">
+    <h2>Just found</h2>
+    <div id="result"></div>
+  </section>
+
+  <section>
+    <h2>History</h2>
+    <ul id="history" class="history"><li class="muted">Nothing yet.</li></ul>
+  </section>
 </main>
-<div class="toast" id="toast"></div>
+
+
+</div>
+
+<main id="share" class="panel hidden">
+  <p class="sub">Tap a playlist to listen on YouTube Music, or text it to a friend.</p>
+  <button class="all" id="shareAll">📤 Share all playlists</button>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLFraQUBf1D6c" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/yJ-jyMwntHfW6FP6KGF4EM75nD0HOuhhRslbaH4WQDk4sInFsisOTerFvt2H2QXNq_buJMHwtFw=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">UberThumbsUp Fast</div><div class="meta">2,530 tracks · 161+ hours</div><div class="vibe">Crowd-pleasers ~100+ BPM</div></div></a><div class="row"><button class="text" data-a="text" data-si="0">💬 Text it</button><button class="copy" data-a="copy" data-si="0">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLM5kUA9ylU6w" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/aGf--Vu_x8Vkr23imZV3_UNwIRCDXu7cXMcvzizS_LWeOmiY11-bysu3p2hJ3jKrTDNnCQH5PQQ=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">Uber Classical</div><div class="meta">36 tracks · 4 hours, 43 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-si="1">💬 Text it</button><button class="copy" data-a="copy" data-si="1">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/bL03B_d31CII18HYw-in3P4JZ0POV5h15pIBfJCtz_G9kJLDBiXkbcfdF2kpv-TFK2rAmDKJiYA9=s1200" alt="" loading="lazy"><div><div class="fav">★ Favorite</div><div class="name">True thumbs up</div><div class="meta">575 tracks · 38+ hours</div><div class="vibe">Finally listening to some lyrics but always great melodies and harmonies</div></div></a><div class="row"><button class="text" data-a="text" data-si="2">💬 Text it</button><button class="copy" data-a="copy" data-si="2">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/7gAPb2mjqRTeXB-j2d8thholZDkpDGwy56iXmihZXyxmurdeneR6lCG8MZkwlbZU4lCKdv7wHTWx213q=w544-h544-s-l90-rj" alt="" loading="lazy"><div><div class="name">UberThumbsUp</div><div class="meta">3,060 tracks · 195+ hours</div><div class="vibe">Combined thumbs-up playlists</div></div></a><div class="row"><button class="text" data-a="text" data-si="3">💬 Text it</button><button class="copy" data-a="copy" data-si="3">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLCYm7t5kgJWU" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/XPYRJnBCQYwXHehq-qaPKHJBpxykmMsXh3eYEiB4Cq2LcN3YhNco-nC-IxEPi3V-k5_GusBPCvR6nzA=w544-h544-s-l90-rj" alt="" loading="lazy"><div><div class="name">UberThumbsUp Slow</div><div class="meta">554 tracks · 37+ hours</div><div class="vibe">Ballads, chill, soft — under 100 BPM</div></div></a><div class="row"><button class="text" data-a="text" data-si="4">💬 Text it</button><button class="copy" data-a="copy" data-si="4">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLaxvLAb-AO3c" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/Va5aomd2x6-7XyVksozRim9ediUL5Zfwm01j14HtU9P8ZA8zgrOGqzwYASAlJXHjdAdHtmJteg=s1200" alt="" loading="lazy"><div><div class="name">Christmas</div><div class="meta">21 tracks · 1 hour, 2 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-si="5">💬 Text it</button><button class="copy" data-a="copy" data-si="5">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/8xrgvooknF4szrETGL3C6XYi46R0ZVeZdaHiB1UhRN2mriU1f77thsQLvQYH5Hu7LRUKNA_fXDs=s1200" alt="" loading="lazy"><div><div class="name">Arthur</div><div class="meta">20 tracks · 1 hour, 22 minutes</div><div class="vibe">Kids in the chorus!</div></div></a><div class="row"><button class="text" data-a="text" data-si="6">💬 Text it</button><button class="copy" data-a="copy" data-si="6">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/bnoRatC_BgrTMWbXxjplTabRmm6FcslEM3H5akKdQtciNC8eVs5vA3Dy5SDF6KV27NzRjzORddg=s1200" alt="" loading="lazy"><div><div class="name">semi</div><div class="meta">6 tracks · 27 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-si="7">💬 Text it</button><button class="copy" data-a="copy" data-si="7">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/wzbW0SdLV-4PkwG0jhasMDB_j6ZMx8QBs73zIlHuDMjXzse4-28tf0eeLIb35AEMDvumpYkpAiI=s1200" alt="" loading="lazy"><div><div class="name">parade</div><div class="meta">5 tracks · 21 minutes</div></div></a><div class="row"><button class="text" data-a="text" data-si="8">💬 Text it</button><button class="copy" data-a="copy" data-si="8">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/uzR5jM9UeJA/hq720.jpg?sqp=-oaymwEKCNUGEN8DIABIWg&amp;rs=AMzJL3kUx_s355cUA3QWNadf9tZMjObW7g" alt="" loading="lazy"><div><div class="name">Australia trip music</div><div class="meta">4 tracks · 13 minutes, 36 seconds</div></div></a><div class="row"><button class="text" data-a="text" data-si="9">💬 Text it</button><button class="copy" data-a="copy" data-si="9">Copy</button></div></div>
+  <div class="card"><a class="top" href="https://music.youtube.com/playlist?list=PLJ1ao64r-Igw" target="_blank" rel="noopener"><img src="https://yt3.googleusercontent.com/FAx67lc_9jNpGOZhJ3G9u0Sa1p7_bcQvgFnPoJl_PRyXM_5BkjAKF6LP_UI-YU2TcEeQLoHnzMAK=s1200" alt="" loading="lazy"><div><div class="name">Comedy</div><div class="meta">4 tracks · 11 minutes, 46 seconds</div></div></a><div class="row"><button class="text" data-a="text" data-si="10">💬 Text it</button><button class="copy" data-a="copy" data-si="10">Copy</button></div></div>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<div id="stoast"></div>
+<script src="app.js?v=5"></script>
 <script>
-const PLAYLISTS = [{"title": "UberThumbsUp Fast", "url": "https://music.youtube.com/playlist?list=PLFraQUBf1D6c"}, {"title": "Uber Classical", "url": "https://music.youtube.com/playlist?list=PLM5kUA9ylU6w"}, {"title": "True thumbs up", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY"}, {"title": "UberThumbsUp", "url": "https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ"}, {"title": "UberThumbsUp Slow", "url": "https://music.youtube.com/playlist?list=PLCYm7t5kgJWU"}, {"title": "Christmas", "url": "https://music.youtube.com/playlist?list=PLaxvLAb-AO3c"}, {"title": "Arthur", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM"}, {"title": "semi", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0"}, {"title": "parade", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6"}, {"title": "Australia trip music", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8"}, {"title": "Comedy", "url": "https://music.youtube.com/playlist?list=PLJ1ao64r-Igw"}];
-const ALL_TEXT = "My YouTube Music playlists 🎶\n\nUberThumbsUp Fast (2,530 tracks): https://music.youtube.com/playlist?list=PLFraQUBf1D6c\nUber Classical (36 tracks): https://music.youtube.com/playlist?list=PLM5kUA9ylU6w\nTrue thumbs up (575 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY\nUberThumbsUp (3,060 tracks): https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ\nUberThumbsUp Slow (554 tracks): https://music.youtube.com/playlist?list=PLCYm7t5kgJWU\nChristmas (21 tracks): https://music.youtube.com/playlist?list=PLaxvLAb-AO3c\nArthur (20 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM\nsemi (6 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0\nparade (5 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6\nAustralia trip music (4 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8\nComedy (4 tracks): https://music.youtube.com/playlist?list=PLJ1ao64r-Igw";
-const toast = (m) => { const t = document.getElementById("toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2200); };
-function sms(body) { location.href = "sms:?&body=" + encodeURIComponent(body); }
-async function share(title, text, url) {
-  const body = url ? text + " " + url : text;
-  if (navigator.share) {
-    try { await navigator.share(url ? { title, text, url } : { title, text }); return; }
-    catch (e) { if (e && e.name === "AbortError") return; }
+(() => {
+  const has = !!window.SAMPLER_HAS_KEY;
+  const tabs = document.getElementById("tabs"), L = document.getElementById("listen"), S = document.getElementById("share");
+  function show(which) {
+    L.classList.toggle("hidden", which !== "listen"); S.classList.toggle("hidden", which !== "share");
+    for (const b of tabs.querySelectorAll("button")) b.classList.toggle("on", b.dataset.tab === which);
+    try { localStorage.setItem("app.tab", which); } catch (_) {}
   }
-  sms(body);
-}
-async function copy(s) {
-  try { await navigator.clipboard.writeText(s); }
-  catch (_) { const ta = document.createElement("textarea"); ta.value = s; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
-  toast("Copied!");
-}
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-i]"); if (!b) return;
-  const p = PLAYLISTS[+b.dataset.i];
-  if (b.dataset.a === "text") share(p.title, p.title, p.url);
-  else copy(p.title + " " + p.url);
-});
-document.getElementById("all").onclick = () => share("Mike's Playlists", ALL_TEXT, "");
+  if (!has) { tabs.classList.add("hidden"); show("share"); return; }     // visitors: Share only
+  tabs.addEventListener("click", (e) => { const b = e.target.closest("button[data-tab]"); if (b) show(b.dataset.tab); });
+  // app.js tidies the URL (drops ?autolisten) before this runs, so read the original navigation URL
+  const nav = performance.getEntriesByType("navigation")[0] || {};
+  let launchUrl; try { launchUrl = new URL(nav.name || location.href); } catch (_) { launchUrl = location; }
+  const launch = new URLSearchParams(launchUrl.search).get("autolisten") === "1" ||
+    ((matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) && nav.type === "navigate");
+  show(location.hash === "#share" ? "share" : launch ? "listen" : (localStorage.getItem("app.tab") || "listen"));
+})();
+</script>
+<script>
+(() => {
+  const PLAYLISTS = [{"title": "UberThumbsUp Fast", "url": "https://music.youtube.com/playlist?list=PLFraQUBf1D6c"}, {"title": "Uber Classical", "url": "https://music.youtube.com/playlist?list=PLM5kUA9ylU6w"}, {"title": "True thumbs up", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY"}, {"title": "UberThumbsUp", "url": "https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ"}, {"title": "UberThumbsUp Slow", "url": "https://music.youtube.com/playlist?list=PLCYm7t5kgJWU"}, {"title": "Christmas", "url": "https://music.youtube.com/playlist?list=PLaxvLAb-AO3c"}, {"title": "Arthur", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM"}, {"title": "semi", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0"}, {"title": "parade", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6"}, {"title": "Australia trip music", "url": "https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8"}, {"title": "Comedy", "url": "https://music.youtube.com/playlist?list=PLJ1ao64r-Igw"}], ALL_TEXT = "My YouTube Music playlists 🎶\n\nUberThumbsUp Fast (2,530 tracks): https://music.youtube.com/playlist?list=PLFraQUBf1D6c\nUber Classical (36 tracks): https://music.youtube.com/playlist?list=PLM5kUA9ylU6w\nTrue thumbs up (575 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ85grOpzuCYZ1k7sNf-4zeY\nUberThumbsUp (3,060 tracks): https://music.youtube.com/playlist?list=PLXBFMjrSDNuQ\nUberThumbsUp Slow (554 tracks): https://music.youtube.com/playlist?list=PLCYm7t5kgJWU\nChristmas (21 tracks): https://music.youtube.com/playlist?list=PLaxvLAb-AO3c\nArthur (20 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ8qv6R43C1JK5__CJHutCDM\nsemi (6 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9N--76yXmXyQRZ28b0xvn0\nparade (5 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ9wir8vjZQs1V8IICfc4Vz6\nAustralia trip music (4 tracks): https://music.youtube.com/playlist?list=PLnajiRJ9FuZ-j_LSuaG-P_IW59FMiHg_8\nComedy (4 tracks): https://music.youtube.com/playlist?list=PLJ1ao64r-Igw";
+  const t = document.getElementById("stoast");
+  const toast = (m) => { t.textContent = m; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), 2200); };
+  const sms = (body) => { location.href = "sms:?&body=" + encodeURIComponent(body); };
+  async function share(title, text, url) {
+    if (navigator.share) {
+      try { await navigator.share(url ? { title, text, url } : { title, text }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    sms(url ? text + " " + url : text);
+  }
+  async function copy(s) {
+    try { await navigator.clipboard.writeText(s); }
+    catch (_) { const ta = document.createElement("textarea"); ta.value = s; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    toast("Copied!");
+  }
+  document.getElementById("share").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-si]"); if (!b) return;
+    const p = PLAYLISTS[+b.dataset.si];
+    if (b.dataset.a === "text") share(p.title, p.title, p.url); else copy(p.title + " " + p.url);
+  });
+  document.getElementById("shareAll").onclick = () => share("Mike's Playlists", ALL_TEXT, "");
+})();
 </script>
 </body></html>

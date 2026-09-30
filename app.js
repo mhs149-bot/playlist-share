@@ -1,0 +1,416 @@
+/* Song Sampler PWA */
+const APP_VERSION = "5";
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const SECONDS = 10;
+  const LS_SEL = "sampler.selected", LS_KEY = "sampler.key";
+
+  // --- access key: ?k=... on first open, then remembered -------------------
+  // REMOTE = served from GitHub Pages (combined app): the API lives behind the tunnel,
+  // whose URL is published in config.json. Otherwise the page is served by the API itself.
+  const REMOTE = !!window.SAMPLER_REMOTE;
+  const qs = new URLSearchParams(location.search);
+  const hs = new URLSearchParams(location.hash.replace(/^#/, ""));
+  if (qs.get("k")) localStorage.setItem(LS_KEY, qs.get("k"));
+  if (hs.get("k")) localStorage.setItem(LS_KEY, hs.get("k"));          // setup link: #k=<key>
+  if (hs.get("api")) localStorage.setItem("sampler.apiOverride", hs.get("api"));
+  if (hs.has("k") || hs.has("api")) history.replaceState(null, "", location.pathname + location.search);
+  const KEY = localStorage.getItem(LS_KEY) || "";
+  window.SAMPLER_HAS_KEY = !!KEY;
+  if (!REMOTE) $("#manifest").href = "/manifest.webmanifest" + (KEY ? "?k=" + encodeURIComponent(KEY) : "");
+  if (REMOTE && !KEY) return;            // visitors without the key only get the Share tab
+
+  const apiBaseP = (async () => {
+    if (!REMOTE) return "";
+    const o = localStorage.getItem("sampler.apiOverride");
+    if (o) return o.replace(/\/$/, "");
+    try {
+      const c = await (await fetch("config.json?t=" + Date.now(), { cache: "no-store" })).json();
+      if (c.apiBase) { localStorage.setItem("sampler.apiBase", c.apiBase); return c.apiBase.replace(/\/$/, ""); }
+    } catch (_) {}
+    return (localStorage.getItem("sampler.apiBase") || "").replace(/\/$/, "");   // last known
+  })();
+
+  async function api(path, opts = {}) {
+    opts.headers = Object.assign({ "x-sampler-key": KEY }, opts.headers || {});
+    const base = await apiBaseP;
+    if (REMOTE && !base) throw new Error("Server address unknown (config.json missing)");
+    let r;
+    try { r = await fetch(base + path, opts); }
+    catch (e) { throw new Error("Can't reach the Song Sampler server – is the box online?"); }
+    let j = null; try { j = await r.json(); } catch (_) {}
+    if (!r.ok) throw new Error((j && (j.detail || j.message)) || r.statusText);
+    return j;
+  }
+  const toast = (msg, ms = 3500) => {
+    const t = $("#toast"); t.textContent = msg; t.classList.remove("hidden");
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.add("hidden"), ms);
+  };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // --- status banner --------------------------------------------------------
+  let lastYtmOk = null;
+  async function loadStatus() {
+    try {
+      const s = await api("/api/status");
+      if (lastYtmOk !== null && s.ytm.ok !== lastYtmOk) loadPlaylists(true);   // login swapped
+      lastYtmOk = s.ytm.ok;
+      const msgs = [];
+      if (!s.recognizer_ready) msgs.push("Song recognition isn't set up yet (server needs AUDD_API_TOKEN).");
+      if (!s.ytm.ok && s.ytm.reapproval_needed) msgs.push("⚠ YouTube Music login needs re-approval (Google access lapsed). Songs are saved as “pending” and added automatically once it's re-approved.");
+      else if (!s.ytm.ok) msgs.push("YouTube Music login expired – songs will be saved as “pending” and added once it's refreshed.");
+      if (s.ytm.ok && s.ytm.quota_limit && s.ytm.quota_used_today > 0.9 * s.ytm.quota_limit) msgs.push(`YouTube API quota almost used today (${s.ytm.quota_used_today}/${s.ytm.quota_limit}) – adds may wait until tomorrow.`);
+      if (s.ytm.dry_run) msgs.push("Test mode: playlists are not really changed.");
+      const b = $("#banner");
+      b.innerHTML = msgs.map(esc).join("<br>");
+      b.classList.toggle("hidden", !msgs.length);
+      b.classList.toggle("err", !s.recognizer_ready);
+    } catch (e) {
+      const b = $("#banner"); b.textContent = "Can't reach server: " + e.message;
+      b.classList.remove("hidden"); b.classList.add("err");
+    }
+  }
+
+  // --- playlists / chips ----------------------------------------------------
+  let playlists = [], selected = new Set(JSON.parse(localStorage.getItem(LS_SEL) || "null") || []);
+  const titleOf = (id) => (playlists.find((p) => p.id === id) || {}).title || id;
+
+  async function loadPlaylists(refresh = false) {
+    try {
+      const r = await api("/api/playlists" + (refresh ? "?refresh=1" : ""));
+      playlists = r.playlists;
+      if (!localStorage.getItem(LS_SEL) && r.selected?.length) selected = new Set(r.selected);
+      $("#plSource").textContent = r.source === "library" ? "" : "(public playlists)";
+      renderChips();
+    } catch (e) { $("#chips").innerHTML = `<span class="muted">Couldn't load playlists: ${esc(e.message)}</span>`; }
+  }
+  function renderChips() {
+    const c = $("#chips"); c.innerHTML = "";
+    if (!playlists.length) { c.innerHTML = '<span class="muted">No playlists found.</span>'; return; }
+    for (const p of playlists) {
+      const b = document.createElement("button");
+      b.className = "chip" + (selected.has(p.id) ? " on" : "");
+      b.textContent = p.title;
+      b.onclick = () => {
+        selected.has(p.id) ? selected.delete(p.id) : selected.add(p.id);
+        saveSel(); renderChips();
+      };
+      c.appendChild(b);
+    }
+  }
+  function saveSel() {
+    const arr = [...selected];
+    localStorage.setItem(LS_SEL, JSON.stringify(arr));
+    api("/api/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ selected: arr }) }).catch(() => {});
+  }
+
+  // --- recording --------------------------------------------------------------
+  // Car/Bluetooth note: voice-processing constraints (echo cancellation etc.) or picking the
+  // car's hands-free mic flips the Bluetooth link into call (HFP) mode, which pauses music.
+  // So: no voice processing, mono, prefer the phone's built-in mic, release the mic ASAP.
+  const btn = $("#rec"), label = $("#recLabel"), prog = $("#prog");
+  const CIRC = 2 * Math.PI * 54;
+  const LS_PHONEMIC = "sampler.phoneMic", LS_MICID = "sampler.micId";
+  const IDLE_LABEL = "Tap to<br>listen";
+  let rec = null, stream = null, timer = null, busy = false, identifyOnly = false;
+
+  const phoneMicOn = () => localStorage.getItem(LS_PHONEMIC) !== "0";   // default ON
+  const toggle = $("#phoneMic");
+  toggle.checked = phoneMicOn();
+  toggle.addEventListener("change", () => {
+    localStorage.setItem(LS_PHONEMIC, toggle.checked ? "1" : "0");
+    if (!toggle.checked) localStorage.removeItem(LS_MICID);
+  });
+
+  const BT_RE = /bluetooth|hands-?free|headset|car|tesla|cybertruck|airpods|buds|hfp|sco|a2dp/i;
+  const BUILTIN_RE = /iphone|built-?in|internal|phone|bottom|front|back|default/i;
+
+  async function builtinMicId() {
+    try {
+      const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "audioinput");
+      if (!devs.some((d) => d.label)) return null;                 // labels need prior permission
+      const ok = devs.filter((d) => !BT_RE.test(d.label));
+      // prefer a real device over the virtual "default"/"communications" ids (which can follow BT)
+      const real = ok.filter((d) => d.deviceId !== "default" && d.deviceId !== "communications");
+      const best = real.find((d) => BUILTIN_RE.test(d.label)) || real[0] || ok[0];
+      return best ? best.deviceId : null;
+    } catch (_) { return null; }
+  }
+
+  function audioConstraints(deviceId) {
+    const a = {
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false,
+      channelCount: 1,
+      voiceIsolation: false,                 // newer Chrome/Safari; ignored where unknown
+    };
+    if (deviceId) a.deviceId = { exact: deviceId };
+    return { audio: a, video: false };
+  }
+
+  function setAudioSession(type) {           // Safari 16.4+/iOS Audio Session API
+    try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (_) {}
+  }
+
+  async function openMic() {
+    setAudioSession("play-and-record");
+    let id = null;
+    if (phoneMicOn()) id = localStorage.getItem(LS_MICID) || (await builtinMicId());
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(audioConstraints(id));
+    } catch (e) {
+      if (id && (e.name === "OverconstrainedError" || e.name === "NotFoundError")) {
+        localStorage.removeItem(LS_MICID);                    // saved device vanished
+        stream = await navigator.mediaDevices.getUserMedia(audioConstraints(null));
+      } else throw e;
+    }
+    if (phoneMicOn()) {
+      // First run: labels only appear after permission. If we got a BT mic, switch now.
+      const cur = stream.getAudioTracks()[0];
+      const better = await builtinMicId();
+      if (better && cur && BT_RE.test(cur.label || "") && cur.getSettings().deviceId !== better) {
+        releaseMic();
+        stream = await navigator.mediaDevices.getUserMedia(audioConstraints(better));
+      }
+      const got = stream.getAudioTracks()[0];
+      if (got && !BT_RE.test(got.label || "")) localStorage.setItem(LS_MICID, got.getSettings().deviceId || "");
+    }
+  }
+
+  function releaseMic() {
+    if (stream) { stream.getTracks().forEach((t) => { try { t.stop(); } catch (_) {} }); stream = null; }
+    setAudioSession("auto");
+  }
+  // Leaving the app (back gesture, home, screen off) cancels a capture cleanly: nothing sent.
+  window.addEventListener("pagehide", () => cancel(true));
+  document.addEventListener("visibilitychange", () => { if (document.hidden) cancel(true); });
+  // Back gesture while listening = Cancel (we push a history entry when capture starts).
+  let recHistory = false, ignorePop = false;
+  window.addEventListener("popstate", () => {
+    if (ignorePop) { ignorePop = false; return; }
+    if (rec) { recHistory = false; cancel(); }
+  });
+  function popRecHistory() {
+    if (recHistory) { recHistory = false; ignorePop = true; history.back(); }
+  }
+
+  function pickMime() {
+    const c = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac", "audio/ogg;codecs=opus"];
+    return c.find((m) => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+  }
+  function setProgress(f) { prog.style.strokeDashoffset = String(CIRC * (1 - f)); }
+
+  const cancelBtn = $("#cancel");
+  let cancelled = false;
+  function showCapturing(on) {
+    cancelBtn.classList.toggle("hidden", !on);
+    btn.classList.toggle("recording", on);
+    if (!on) { setProgress(0); label.innerHTML = IDLE_LABEL; }
+  }
+
+  async function start(opts = {}) {
+    if (busy) return;
+    if (rec) { stop(); return; }                         // tap again = stop early & identify
+    identifyOnly = false;
+    if (!selected.size) {
+      if (opts.auto) return;                             // auto-listen needs a remembered playlist
+      if (!confirm("No playlist selected – just identify the song?")) return;
+      identifyOnly = true;
+    }
+    cancelled = false;
+    label.innerHTML = "Starting mic…";
+    cancelBtn.classList.remove("hidden");
+    try { await openMic(); }
+    catch (e) {
+      releaseMic(); showCapturing(false);
+      if (opts.auto) throw e;                            // caller shows the tap fallback
+      toast("Microphone blocked: " + e.message); return;
+    }
+    if (cancelled) { releaseMic(); showCapturing(false); return; }   // cancelled while opening
+    const mime = pickMime();
+    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.onstop = () => {
+      releaseMic();                                      // belt and braces
+      const type = (rec && rec.mimeType) || mime || "audio/webm";
+      rec = null; clearInterval(timer);
+      showCapturing(false); popRecHistory();
+      if (cancelled) return;                             // discard: no upload, no history
+      const ext = type.includes("mp4") || type.includes("aac") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+      send(new Blob(chunks, { type }), "clip." + ext);
+    };
+    rec.start(250);
+    showCapturing(true);
+    try { history.pushState({ sampling: 1 }, ""); recHistory = true; } catch (_) {}
+    const t0 = Date.now();
+    timer = setInterval(() => {
+      const el = (Date.now() - t0) / 1000;
+      setProgress(Math.min(1, el / SECONDS));
+      label.innerHTML = `Listening…<br>${Math.max(0, Math.ceil(SECONDS - el))}s`;
+      if (el >= SECONDS) stop();
+    }, 200);
+  }
+  // Stop recording AND release the mic right away, so the car's audio can resume.
+  function stop() {
+    clearInterval(timer);
+    if (rec && rec.state !== "inactive") { try { rec.requestData(); } catch (_) {} rec.stop(); }
+    releaseMic();
+  }
+  // Cancel: stop instantly, release the mic, throw the audio away.
+  function cancel(silent = false) {
+    const active = !!rec || !cancelBtn.classList.contains("hidden");
+    if (!active) { releaseMic(); return; }              // not capturing (idle / identifying)
+    cancelled = true;
+    clearInterval(timer);
+    if (rec && rec.state !== "inactive") rec.stop();    // onstop sees `cancelled` -> discards
+    else { rec = null; showCapturing(false); popRecHistory(); }
+    releaseMic();
+    if (active && !silent) toast("Cancelled – nothing saved");
+  }
+  cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); cancel(); });
+
+  async function send(blob, name) {
+    busy = true; btn.classList.add("busy"); label.innerHTML = "Identifying…";
+    const sentSel = identifyOnly ? [] : [...selected];     // snapshot at upload time
+    try {
+      const fd = new FormData();
+      fd.append("audio", blob, name);
+      fd.append("playlists", JSON.stringify(sentSel));
+      fd.append("mode", identifyOnly ? "identify_only" : "add");
+      const r = await api("/api/identify", { method: "POST", body: fd });
+      if (!r.match) { toast(r.message || "No match"); if (navigator.vibrate) navigator.vibrate([60, 60, 60]); return; }
+      if (navigator.vibrate) navigator.vibrate(120);
+      let entry = r.entry;
+      // Chips tapped while recording/identifying also count: add those now.
+      const have = new Set((entry.adds || []).map((a) => a.playlistId));
+      const late = [...selected].filter((id) => !have.has(id) && !sentSel.includes(id));
+      if (late.length && entry.ytm && entry.ytm.videoId) {
+        entry = await api(`/api/history/${entry.id}/add`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists: late }) });
+      }
+      showResult(entry);
+      const adds = entry.adds || [];
+      const ok = adds.filter((a) => a.status === "added" || a.status === "already").length;
+      const bad = adds.filter((a) => a.status === "pending" || a.status === "failed");
+      let msg = `${entry.song.title} – ${entry.song.artist}`;
+      if (ok) msg += ` → ${ok} playlist${ok > 1 ? "s" : ""}`;
+      if (bad.length) msg += ` · ⚠ ${bad.length} not added (${bad[0].status})`;
+      if (!adds.length) msg += " · ⚠ not added – no playlist selected";
+      toast(msg, bad.length || !adds.length ? 7000 : 3500);
+      loadHistory();
+    } catch (e) { toast(e.message, 6000); }
+    finally { busy = false; identifyOnly = false; btn.classList.remove("busy"); label.innerHTML = IDLE_LABEL; }
+  }
+
+  btn.addEventListener("click", start);
+  $("#file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) send(f, f.name); e.target.value = ""; });
+  $("#refresh").addEventListener("click", () => { loadPlaylists(true); loadStatus(); loadHistory(); });
+
+  // --- result + history cards -------------------------------------------------
+  function card(h) {
+    const s = h.song || {}, y = h.ytm || {};
+    const img = s.thumbnail || y.thumbnail || "icons/icon-192.png";
+    const tags = (h.adds || []).map((a) => `<span class="tag ${a.status}" title="${esc(a.error || a.reason || a.status)}">${esc(a.title || titleOf(a.playlistId))}${a.status === "pending" ? " (pending)" : a.status === "failed" ? " (failed)" : a.status === "already" ? " (already there)" : ""}<button data-act="rm" data-pl="${esc(a.playlistId)}" title="Remove from this playlist">×</button></span>`).join("");
+    const needsRetry = (h.adds || []).some((a) => a.status === "pending" || a.status === "failed");
+    const firstErr = (h.adds || []).find((a) => (a.status === "pending" || a.status === "failed") && a.error);
+    const dupe = (h.adds || []).find((a) => a.status === "already" && a.reason);
+    const errLine = (firstErr ? `<div class="err">⚠ ${esc(firstErr.status)}: ${esc(firstErr.error)}</div>` : "")
+      + (dupe ? `<div class="yt">Skipped ${esc(dupe.title)}: ${esc(dupe.reason)}</div>` : "");
+    const missing = [...selected].filter((id) => !(h.adds || []).some((a) => a.playlistId === id));
+    const when = new Date(h.created_at * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    return `<div class="card" data-id="${esc(h.id)}">
+      <img src="${esc(img)}" alt="" loading="lazy" onerror="this.src='icons/icon-192.png'">
+      <div class="meta">
+        <div class="t">${esc(s.title)}</div>
+        <div class="a">${esc(s.artist)}${s.album ? " · " + esc(s.album) : ""}</div>
+        <div class="yt">${y.videoId ? `YT Music: <a href="${esc(y.url)}" target="_blank" rel="noopener">${esc(y.title)} – ${esc(y.artists)}</a>` : "No YouTube Music match"}</div>
+        <div class="tags">${tags || '<span class="tag pending">Not added to any playlist – no playlist was selected</span>'}</div>
+        ${errLine}
+        <div class="actions">
+          ${(h.adds || []).length ? '<button data-act="undo" class="danger">Undo (remove from playlists)</button>' : ""}
+          ${needsRetry ? '<button data-act="retry">Retry</button>' : ""}
+          ${missing.length && y.videoId ? `<button data-act="addsel">+ Add to ${missing.length === 1 ? esc(titleOf(missing[0])) : "selected (" + missing.length + ")"}</button>` : ""}
+          <button data-act="forget">Hide</button>
+        </div>
+        <div class="when">${esc(when)} · via ${esc(s.provider)}</div>
+      </div></div>`;
+  }
+  function showResult(h) { $("#resultWrap").classList.remove("hidden"); $("#result").innerHTML = card(h); }
+
+  let historyCache = [];
+  async function loadHistory() {
+    try {
+      const r = await api("/api/history");
+      historyCache = r.history;
+      $("#history").innerHTML = r.history.length ? r.history.map((h) => `<li>${card(h)}</li>`).join("") : '<li class="muted">Nothing yet.</li>';
+    } catch (e) { $("#history").innerHTML = `<li class="muted">${esc(e.message)}</li>`; }
+  }
+
+  document.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button[data-act]"); if (!b) return;
+    const id = b.closest(".card").dataset.id, act = b.dataset.act;
+    const h = historyCache.find((x) => x.id === id) || {};
+    const name = h.song ? `“${h.song.title}”` : "this song";
+    b.disabled = true;
+    try {
+      if (act === "rm") {
+        await api(`/api/history/${id}/playlists/${encodeURIComponent(b.dataset.pl)}`, { method: "DELETE" });
+        toast("Removed from " + titleOf(b.dataset.pl));
+      } else if (act === "undo") {
+        if (!confirm(`Remove ${name} from every playlist it was added to?`)) return;
+        await api(`/api/history/${id}/undo`, { method: "POST" });
+        toast("Undone"); $("#resultWrap").classList.add("hidden");
+      } else if (act === "retry") {
+        await api(`/api/history/${id}/add`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists: (h.adds || []).map((a) => a.playlistId) }) });
+      } else if (act === "addsel") {
+        await api(`/api/history/${id}/add`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists: [...selected] }) });
+      } else if (act === "forget") {
+        if (!confirm(`Hide ${name} from history? (Playlists are not changed.)`)) return;
+        await api(`/api/history/${id}`, { method: "DELETE" });
+        if ($("#result .card")?.dataset.id === id) $("#resultWrap").classList.add("hidden");
+      }
+      await loadHistory();
+      const cur = historyCache.find((x) => x.id === $("#result .card")?.dataset.id);
+      if (cur) showResult(cur);
+    } catch (e) { toast(e.message, 6000); }
+    finally { b.disabled = false; }
+  });
+
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { loadStatus(); loadPlaylists(); loadHistory(); } });
+  setInterval(() => { if (!document.hidden && !busy && !rec) loadStatus(); }, 60000);
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+  // --- auto-listen on launch ------------------------------------------------------
+  // Home-screen launch (?autolisten=1 in the manifest start_url, or any fresh standalone
+  // launch) starts listening right away with the remembered playlist(s), if the mic
+  // permission is already granted. Otherwise the big button stays as the fallback.
+  const LS_AUTO = "sampler.autoListen";
+  const autoToggle = $("#autoListen");
+  autoToggle.checked = localStorage.getItem(LS_AUTO) !== "0";         // default ON
+  autoToggle.addEventListener("change", () => localStorage.setItem(LS_AUTO, autoToggle.checked ? "1" : "0"));
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const navType = (performance.getEntriesByType("navigation")[0] || {}).type;
+  const launchAuto = qs.get("autolisten") === "1" || (standalone && navType === "navigate");
+  if (qs.has("autolisten") || qs.has("k")) history.replaceState(null, "", location.pathname);   // tidy URL, no re-trigger on reload
+
+  async function micGranted() {
+    try { return (await navigator.permissions.query({ name: "microphone" })).state === "granted"; }
+    catch (_) { return false; }
+  }
+  async function autoListen(reason) {
+    if (!autoToggle.checked || busy || rec) return;
+    if (!selected.size) { $("#hint").textContent = "Pick a playlist below – next launch starts listening automatically."; return; }
+    if (!(await micGranted())) { $("#hint").textContent = "Tap to listen (allow the mic once – after that it starts on launch)."; return; }
+    try { await start({ auto: true }); }
+    catch (e) { $("#hint").textContent = "Couldn't auto-start the mic – tap to listen."; }
+  }
+
+  let hiddenAt = 0;
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    // Android keeps the app alive: re-opening it from the icon after a while = a new launch
+    if (standalone && hiddenAt && Date.now() - hiddenAt > 60000) autoListen("resume");
+  });
+
+  loadStatus(); loadHistory();
+  loadPlaylists().then(() => { if (launchAuto) autoListen("launch"); });
+})();
