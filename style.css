@@ -70,10 +70,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .listen-ov .halo.h2{animation-delay:.8s}
 .listen-ov.metered img{animation:none;transform:scale(calc(1 + .22*var(--lvl)));transition:transform 60ms linear}
 .listen-ov.metered .pulse{transform:scale(calc(1 + .12*var(--lvl)));transition:transform 90ms linear}
-.ov-label{margin-top:34px;font-size:26px;font-weight:700}
+.ov-label,.ov-sub,.listen-ov .cancel{position:relative;z-index:3}
+.ov-label{margin-top:44px;font-size:26px;font-weight:700}
 .ov-sub{color:var(--muted,#9a9aa8);font-size:14px;margin-top:6px}
 .listen-ov .cancel{margin-top:28px}
 body.listening{overflow:hidden}
 @keyframes ov-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-@keyframes ov-ring{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.7);opacity:0}}
+@keyframes ov-ring{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.45);opacity:0}}
 @media (prefers-reduced-motion:reduce){.listen-ov img,.listen-ov .halo{animation:none}}
