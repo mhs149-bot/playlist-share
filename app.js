@@ -1,5 +1,5 @@
 /* Song Sampler PWA */
-const APP_VERSION = "6";
+const APP_VERSION = "7";
 (() => {
   const $ = (s) => document.querySelector(s);
   const SECONDS = 10;
@@ -20,7 +20,8 @@ const APP_VERSION = "6";
   if (!REMOTE) $("#manifest").href = "/manifest.webmanifest" + (KEY ? "?k=" + encodeURIComponent(KEY) : "");
   if (REMOTE && !KEY) return;            // visitors without the key only get the Share tab
 
-  const apiBaseP = (async () => {
+  let apiBaseP;
+  const loadBase = async (fresh) => {
     if (!REMOTE) return "";
     const o = localStorage.getItem("sampler.apiOverride");
     if (o) return o.replace(/\/$/, "");
@@ -29,15 +30,35 @@ const APP_VERSION = "6";
       if (c.apiBase) { localStorage.setItem("sampler.apiBase", c.apiBase); return c.apiBase.replace(/\/$/, ""); }
     } catch (_) {}
     return (localStorage.getItem("sampler.apiBase") || "").replace(/\/$/, "");   // last known
-  })();
+  };
+  apiBaseP = loadBase();
+  // client-side diagnostics -> server log (never blocks, never throws)
+  function clog(ev, detail) {
+    try {
+      Promise.resolve(apiBaseP).then((base) => {
+        if (REMOTE && !base) return;
+        fetch(base + "/api/clientlog", { method: "POST", keepalive: true,
+          headers: { "content-type": "application/json", "x-sampler-key": KEY },
+          body: JSON.stringify({ ev, detail: detail || null, v: APP_VERSION, ua: navigator.userAgent.slice(0, 120) }) }).catch(() => {});
+      });
+    } catch (_) {}
+  }
+  window.addEventListener("error", (e) => clog("js-error", String(e.message || e.error)));
+  window.addEventListener("unhandledrejection", (e) => clog("js-reject", String((e.reason && e.reason.message) || e.reason)));
 
   async function api(path, opts = {}) {
     opts.headers = Object.assign({ "x-sampler-key": KEY }, opts.headers || {});
     const base = await apiBaseP;
     if (REMOTE && !base) throw new Error("Server address unknown (config.json missing)");
-    let r;
-    try { r = await fetch(base + path, opts); }
-    catch (e) { throw new Error("Can't reach the Song Sampler server – is the box online?"); }
+    let r, b = base;
+    for (let attempt = 0; ; attempt++) {
+      try { r = await fetch(b + path, opts); break; }
+      catch (e) {
+        if (attempt >= 3) throw new Error("Can't reach the Song Sampler server – is the box online?");
+        await new Promise((res) => setTimeout(res, 2500 * (attempt + 1)));   // tunnel may be reconnecting
+        if (REMOTE && !localStorage.getItem("sampler.apiOverride")) { apiBaseP = loadBase(); b = await apiBaseP; }
+      }
+    }
     let j = null; try { j = await r.json(); } catch (_) {}
     if (!r.ok) throw new Error((j && (j.detail || j.message)) || r.statusText);
     return j;
@@ -112,7 +133,7 @@ const APP_VERSION = "6";
   const CIRC = 2 * Math.PI * 54;
   const LS_PHONEMIC = "sampler.phoneMic", LS_MICID = "sampler.micId";
   const IDLE_LABEL = "Tap to<br>listen";
-  let rec = null, stream = null, timer = null, busy = false, identifyOnly = false;
+  let rec = null, stream = null, timer = null, busy = false, identifyOnly = false, recStartedAt = 0;
 
   const phoneMicOn = () => localStorage.getItem(LS_PHONEMIC) !== "0";   // default ON
   const toggle = $("#phoneMic");
@@ -182,7 +203,11 @@ const APP_VERSION = "6";
   }
   // Leaving the app (back gesture, home, screen off) cancels a capture cleanly: nothing sent.
   window.addEventListener("pagehide", () => cancel(true));
-  document.addEventListener("visibilitychange", () => { if (document.hidden) cancel(true); });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) return;
+    if (rec && recStartedAt && Date.now() - recStartedAt >= 3000) { clog("hidden-finish", Math.round((Date.now() - recStartedAt) / 1000) + "s"); stop(); }
+    else if (rec || !overlay.classList.contains("hidden")) { clog("hidden-cancel", null); cancel(true); }
+  });
   // Back gesture while listening = Cancel (we push a history entry when capture starts).
   let recHistory = false, ignorePop = false;
   window.addEventListener("popstate", () => {
@@ -264,17 +289,23 @@ const APP_VERSION = "6";
       identifyOnly = true;
     }
     cancelled = false;
+    clog("start", { auto: !!opts.auto, playlists: selected.size });
     label.innerHTML = "Starting mic…";
     showOverlay(true, "Starting mic…");
     try { await openMic(); }
     catch (e) {
       releaseMic(); showCapturing(false);
+      clog("mic-fail", (e && e.name) + ": " + (e && e.message));
       if (opts.auto) throw e;                            // caller shows the tap fallback
       toast("Microphone blocked: " + e.message); return;
     }
     if (cancelled) { releaseMic(); showCapturing(false); return; }   // cancelled while opening
     const mime = pickMime();
-    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    { const tr = stream && stream.getAudioTracks()[0]; clog("mic-ok", { label: tr && tr.label, mime }); }
+    try { rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined); }
+    catch (e) { clog("recorder-fail", e.name + ": " + e.message); releaseMic(); showCapturing(false); toast("Recorder failed: " + e.message); return; }
+    rec.onerror = (e) => clog("recorder-error", String(e.error || e));
+    { const tr = stream.getAudioTracks()[0]; if (tr) tr.onended = () => { clog("track-ended", tr.label); if (rec) stop(); }; }
     const chunks = [];
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = () => {
@@ -282,11 +313,15 @@ const APP_VERSION = "6";
       const type = (rec && rec.mimeType) || mime || "audio/webm";
       rec = null; clearInterval(timer);
       showCapturing(false); popRecHistory();
+      const bytes = chunks.reduce((n, c) => n + c.size, 0);
+      clog("rec-stop", { cancelled, bytes, secs: Math.round((Date.now() - recStartedAt) / 1000) });
+      recStartedAt = 0;
       if (cancelled) return;                             // discard: no upload, no history
+      if (bytes < 1000) { toast("Mic gave no audio – try again (or turn off 'phone mic only')", 6000); return; }
       const ext = type.includes("mp4") || type.includes("aac") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
       send(new Blob(chunks, { type }), "clip." + ext);
     };
-    rec.start(250);
+    rec.start(250); recStartedAt = Date.now();
     showCapturing(true);
     try { history.pushState({ sampling: 1 }, ""); recHistory = true; } catch (_) {}
     const t0 = Date.now();
@@ -345,7 +380,7 @@ const APP_VERSION = "6";
       if (!adds.length) msg += " · ⚠ not added – no playlist selected";
       toast(msg, bad.length || !adds.length ? 7000 : 3500);
       loadHistory();
-    } catch (e) { toast(e.message, 6000); }
+    } catch (e) { clog("send-fail", e.message); toast(e.message, 6000); }
     finally { busy = false; identifyOnly = false; btn.classList.remove("busy"); label.innerHTML = IDLE_LABEL; }
   }
 
