@@ -38,7 +38,7 @@ const APP_VERSION = "7";
       Promise.resolve(apiBaseP).then((base) => {
         if (REMOTE && !base) return;
         fetch(base + "/api/clientlog", { method: "POST", keepalive: true,
-          headers: { "content-type": "application/json", "x-sampler-key": KEY },
+          headers: { "content-type": "application/json", "x-sampler-key": KEY, "x-pinggy-no-screen": "1" },
           body: JSON.stringify({ ev, detail: detail || null, v: APP_VERSION, ua: navigator.userAgent.slice(0, 120) }) }).catch(() => {});
       });
     } catch (_) {}
@@ -47,7 +47,7 @@ const APP_VERSION = "7";
   window.addEventListener("unhandledrejection", (e) => clog("js-reject", String((e.reason && e.reason.message) || e.reason)));
 
   async function api(path, opts = {}) {
-    opts.headers = Object.assign({ "x-sampler-key": KEY }, opts.headers || {});
+    opts.headers = Object.assign({ "x-sampler-key": KEY, "x-pinggy-no-screen": "1" }, opts.headers || {});   // header skips Pinggy (fallback tunnel) warning page
     const base = await apiBaseP;
     if (REMOTE && !base) throw new Error("Server address unknown (config.json missing)");
     let r, b = base;
