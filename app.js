@@ -1,5 +1,5 @@
 /* Song Sampler PWA */
-const APP_VERSION = "7";
+const APP_VERSION = "8";
 (() => {
   const $ = (s) => document.querySelector(s);
   const SECONDS = 10;
