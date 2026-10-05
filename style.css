@@ -78,3 +78,15 @@ body.listening{overflow:hidden}
 @keyframes ov-beat{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 @keyframes ov-ring{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.45);opacity:0}}
 @media (prefers-reduced-motion:reduce){.listen-ov img,.listen-ov .halo{animation:none}}
+
+/* v9: Move-to playlist picker on history / Just found cards */
+.actions .move-btn{background:var(--accent);color:#fff;font-weight:600;padding:8px 14px;min-height:36px}
+.move-picker{margin-top:10px;background:#121218;border:1px solid #2e2e3a;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.move-picker.hidden{display:none!important}
+.move-picker-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.move-picker-empty{font-size:13px;color:var(--muted);padding:8px}
+.move-opt{background:#262632;border:1px solid #3a3a48;border-radius:10px;padding:12px 14px;font-size:15px;text-align:left;width:100%;-webkit-tap-highlight-color:transparent}
+.move-opt:active{background:#333}
+.move-opt.on{border-color:var(--accent);color:#ffb3c0}
+.move-opt:disabled{opacity:.55}
+.move-cancel{background:none;border:1px solid #3a3a48;border-radius:10px;padding:10px 14px;font-size:14px;color:var(--muted);margin-top:2px}

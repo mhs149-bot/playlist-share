@@ -1,5 +1,5 @@
 /* Song Sampler PWA */
-const APP_VERSION = "8";
+const APP_VERSION = "9";
 (() => {
   const $ = (s) => document.querySelector(s);
   const SECONDS = 10;
@@ -409,11 +409,13 @@ const APP_VERSION = "8";
         <div class="tags">${tags || '<span class="tag pending">Not added to any playlist – no playlist was selected</span>'}</div>
         ${errLine}
         <div class="actions">
+          ${y.videoId ? '<button data-act="move" class="move-btn">Move to…</button>' : ""}
           ${(h.adds || []).length ? '<button data-act="undo" class="danger">Undo (remove from playlists)</button>' : ""}
           ${needsRetry ? '<button data-act="retry">Retry</button>' : ""}
           ${missing.length && y.videoId ? `<button data-act="addsel">+ Add to ${missing.length === 1 ? esc(titleOf(missing[0])) : "selected (" + missing.length + ")"}</button>` : ""}
           <button data-act="forget">Hide</button>
         </div>
+        <div class="move-picker hidden" data-move-for="${esc(h.id)}"></div>
         <div class="when">${esc(when)} · via ${esc(s.provider)}</div>
       </div></div>`;
   }
@@ -428,16 +430,59 @@ const APP_VERSION = "8";
     } catch (e) { $("#history").innerHTML = `<li class="muted">${esc(e.message)}</li>`; }
   }
 
+  function closeMovePickers(except) {
+    document.querySelectorAll(".move-picker").forEach((p) => {
+      if (p !== except) { p.classList.add("hidden"); p.innerHTML = ""; }
+    });
+  }
+  function fillMovePicker(picker, entryId) {
+    const h = historyCache.find((x) => x.id === entryId) || {};
+    const on = new Set((h.adds || []).filter((a) => a.status === "added" || a.status === "already").map((a) => a.playlistId));
+    if (!playlists.length) {
+      picker.innerHTML = '<div class="move-picker-empty">No playlists loaded.</div>';
+      return;
+    }
+    const rows = playlists.map((p) => {
+      const here = on.has(p.id);
+      return `<button type="button" data-act="moveto" data-pl="${esc(p.id)}" class="move-opt${here ? " on" : ""}"${here && on.size === 1 ? " disabled" : ""}>${esc(p.title)}${here ? " · current" : ""}</button>`;
+    }).join("");
+    picker.innerHTML = `<div class="move-picker-label">Move to playlist</div>${rows}<button type="button" data-act="movecancel" class="move-cancel">Cancel</button>`;
+  }
+
   document.addEventListener("click", async (ev) => {
     const b = ev.target.closest("button[data-act]"); if (!b) return;
-    const id = b.closest(".card").dataset.id, act = b.dataset.act;
+    const cardEl = b.closest(".card"); if (!cardEl) return;
+    const id = cardEl.dataset.id, act = b.dataset.act;
     const h = historyCache.find((x) => x.id === id) || {};
     const name = h.song ? `“${h.song.title}”` : "this song";
+    if (act === "move") {
+      const picker = cardEl.querySelector(".move-picker");
+      if (!picker) return;
+      const opening = picker.classList.contains("hidden");
+      closeMovePickers(opening ? picker : null);
+      if (opening) { fillMovePicker(picker, id); picker.classList.remove("hidden"); }
+      else { picker.classList.add("hidden"); picker.innerHTML = ""; }
+      return;
+    }
+    if (act === "movecancel") {
+      closeMovePickers();
+      return;
+    }
     b.disabled = true;
     try {
       if (act === "rm") {
         await api(`/api/history/${id}/playlists/${encodeURIComponent(b.dataset.pl)}`, { method: "DELETE" });
         toast("Removed from " + titleOf(b.dataset.pl));
+      } else if (act === "moveto") {
+        const pl = b.dataset.pl;
+        const r = await api(`/api/history/${id}/move`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ playlist: pl }),
+        });
+        closeMovePickers();
+        if (r.already) toast("Already on " + (r.targetTitle || titleOf(pl)));
+        else if (r.warning) toast(r.warning, 7000);
+        else toast("Moved to " + (r.targetTitle || titleOf(pl)));
       } else if (act === "undo") {
         if (!confirm(`Remove ${name} from every playlist it was added to?`)) return;
         await api(`/api/history/${id}/undo`, { method: "POST" });
