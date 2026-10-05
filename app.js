@@ -475,6 +475,8 @@ const APP_VERSION = "11";
   // --- result + history cards -------------------------------------------------
   function bpmLine(s) {
     if (!s) return "";
+    // Old history entries predate BPM — don't stamp "BPM ?" on them.
+    if (!("bpm" in s) && s.bpm_source == null && s.bpm_threshold == null) return "";
     if (s.bpm == null || s.bpm === "") {
       return `<div class="bpm unknown">BPM ?</div>`;
     }
