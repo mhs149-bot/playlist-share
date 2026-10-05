@@ -90,3 +90,15 @@ body.listening{overflow:hidden}
 .move-opt.on{border-color:var(--accent);color:#ffb3c0}
 .move-opt:disabled{opacity:.55}
 .move-cancel{background:none;border:1px solid #3a3a48;border-radius:10px;padding:10px 14px;font-size:14px;color:var(--muted);margin-top:2px}
+
+/* v11: primary Fast/Slow chips + collapsed More playlists + BPM badge */
+.auto-bpm{max-width:none;margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;flex-direction:column;align-items:stretch}
+.chips-primary,.chips-more{display:flex;flex-wrap:wrap;gap:8px}
+.chips-more.hidden{display:none!important}
+.more-pl{align-self:flex-start;border:1px dashed #3a3a48;background:transparent;border-radius:999px;padding:8px 14px;font-size:13px;color:var(--muted);-webkit-tap-highlight-color:transparent}
+.more-pl.open{border-style:solid;color:var(--fg)}
+.chip.primary{font-weight:600}
+.card .bpm{font-size:12px;font-weight:600;margin-top:4px;color:#9ff0c1}
+.card .bpm.unknown{color:var(--warn)}
+.card .bpm .src{font-weight:400;color:var(--muted);font-size:11px}

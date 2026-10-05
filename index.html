@@ -13,7 +13,7 @@
 <link id="manifest" rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png?v=9">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=9">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 <style>
 #share .sub{color:var(--muted);margin:0 0 14px;font-size:14px}
 #share button,#share a.btn{font:inherit;border:none;border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -69,6 +69,7 @@
 
   <section>
     <h2>Add to <small id="plSource"></small></h2>
+    <label class="toggle auto-bpm"><input id="autoBpm" type="checkbox" checked> <span><b>Auto Fast/Slow by BPM</b><br><small>Adds to UberThumbsUp Fast (≥ <span id="bpmThr">100</span> BPM) or Slow (&lt; threshold). Turn off to pick chips yourself.</small></span></label>
     <div id="chips" class="chips"><span class="muted">Loading playlists…</span></div>
   </section>
 
@@ -104,7 +105,7 @@
 
 <div id="toast" class="toast hidden"></div>
 <div id="stoast"></div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 <script>
 (() => {
   const has = !!window.SAMPLER_HAS_KEY;

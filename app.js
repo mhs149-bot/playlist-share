@@ -1,9 +1,15 @@
 /* Song Sampler PWA */
-const APP_VERSION = "10";
+const APP_VERSION = "11";
 (() => {
   const $ = (s) => document.querySelector(s);
   const SECONDS = 10;
   const LS_SEL = "sampler.selected", LS_KEY = "sampler.key";
+  const LS_AUTO_BPM = "sampler.autoBpm", LS_MORE_PL = "sampler.morePl";
+  const PL_FAST = "PLFraQUBf1D6c", PL_SLOW = "PLCYm7t5kgJWU";
+  const PRIMARY_IDS = [PL_FAST, PL_SLOW];
+  let bpmThreshold = 100;
+  let autoBpm = localStorage.getItem(LS_AUTO_BPM) !== "0";   // default ON
+  let moreOpen = localStorage.getItem(LS_MORE_PL) === "1";
 
   // --- access key: ?k=... on first open, then remembered -------------------
   // REMOTE = served from GitHub Pages (combined app): the API lives behind the tunnel,
@@ -76,6 +82,10 @@ const APP_VERSION = "10";
       const s = await api("/api/status");
       if (lastYtmOk !== null && s.ytm.ok !== lastYtmOk) loadPlaylists(true);   // login swapped
       lastYtmOk = s.ytm.ok;
+      if (typeof s.bpm_threshold === "number") {
+        bpmThreshold = s.bpm_threshold;
+        const thr = $("#bpmThr"); if (thr) thr.textContent = String(Math.round(bpmThreshold));
+      }
       const msgs = [];
       if (!s.recognizer_ready) msgs.push("Song recognition isn't set up yet (server needs AUDD_API_TOKEN).");
       if (!s.ytm.ok && s.ytm.reapproval_needed) msgs.push("⚠ YouTube Music login needs re-approval (Google access lapsed). Songs are saved as “pending” and added automatically once it's re-approved.");
@@ -94,35 +104,96 @@ const APP_VERSION = "10";
 
   // --- playlists / chips ----------------------------------------------------
   let playlists = [], selected = new Set(JSON.parse(localStorage.getItem(LS_SEL) || "null") || []);
-  const titleOf = (id) => (playlists.find((p) => p.id === id) || {}).title || id;
+  const titleOf = (id) => (playlists.find((p) => p.id === id) || {}).title || ({ [PL_FAST]: "UberThumbsUp Fast", [PL_SLOW]: "UberThumbsUp Slow" }[id]) || id;
+  const shortTitle = (p) => {
+    const t = p.title || "";
+    if (p.id === PL_FAST || /uberthumbsup\s*fast/i.test(t)) return "UberThumbsUp Fast";
+    if (p.id === PL_SLOW || /uberthumbsup\s*slow/i.test(t)) return "UberThumbsUp Slow";
+    return t;
+  };
+
+  // Auto Fast/Slow by BPM toggle (default ON)
+  const autoBpmEl = $("#autoBpm");
+  if (autoBpmEl) {
+    autoBpmEl.checked = autoBpm;
+    autoBpmEl.addEventListener("change", () => {
+      autoBpm = autoBpmEl.checked;
+      localStorage.setItem(LS_AUTO_BPM, autoBpm ? "1" : "0");
+      api("/api/settings", { method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ auto_bpm_route: autoBpm }) }).catch(() => {});
+      renderChips();
+    });
+  }
 
   async function loadPlaylists(refresh = false) {
     try {
       const r = await api("/api/playlists" + (refresh ? "?refresh=1" : ""));
-      playlists = r.playlists;
-      if (!localStorage.getItem(LS_SEL) && r.selected?.length) selected = new Set(r.selected);
+      playlists = r.playlists || [];
+      if (typeof r.bpm_threshold === "number") {
+        bpmThreshold = r.bpm_threshold;
+        const thr = $("#bpmThr"); if (thr) thr.textContent = String(Math.round(bpmThreshold));
+      }
+      if (typeof r.auto_bpm_route === "boolean" && localStorage.getItem(LS_AUTO_BPM) == null) {
+        autoBpm = r.auto_bpm_route; if (autoBpmEl) autoBpmEl.checked = autoBpm;
+      }
+      if (!localStorage.getItem(LS_SEL)) {
+        if (r.selected?.length) selected = new Set(r.selected);
+        else selected = new Set(PRIMARY_IDS.filter((id) => playlists.some((p) => p.id === id)));
+        if (selected.size) saveSel();
+      }
       $("#plSource").textContent = r.source === "library" ? "" : "(public playlists)";
       renderChips();
     } catch (e) { $("#chips").innerHTML = `<span class="muted">Couldn't load playlists: ${esc(e.message)}</span>`; }
   }
+  function makeChip(p, primary) {
+    const b = document.createElement("button");
+    b.className = "chip" + (primary ? " primary" : "") + (selected.has(p.id) ? " on" : "");
+    b.textContent = shortTitle(p);
+    b.onclick = () => {
+      selected.has(p.id) ? selected.delete(p.id) : selected.add(p.id);
+      saveSel(); renderChips();
+    };
+    return b;
+  }
   function renderChips() {
     const c = $("#chips"); c.innerHTML = "";
     if (!playlists.length) { c.innerHTML = '<span class="muted">No playlists found.</span>'; return; }
+    const primary = [];
+    const rest = [];
+    const seen = new Set();
+    for (const id of PRIMARY_IDS) {
+      const p = playlists.find((x) => x.id === id);
+      if (p) { primary.push(p); seen.add(id); }
+    }
     for (const p of playlists) {
-      const b = document.createElement("button");
-      b.className = "chip" + (selected.has(p.id) ? " on" : "");
-      b.textContent = p.title;
-      b.onclick = () => {
-        selected.has(p.id) ? selected.delete(p.id) : selected.add(p.id);
-        saveSel(); renderChips();
+      if (!seen.has(p.id)) rest.push(p);
+    }
+    const row = document.createElement("div");
+    row.className = "chips-primary";
+    for (const p of primary) row.appendChild(makeChip(p, true));
+    c.appendChild(row);
+    if (rest.length) {
+      const moreBtn = document.createElement("button");
+      moreBtn.type = "button";
+      moreBtn.className = "more-pl" + (moreOpen ? " open" : "");
+      moreBtn.textContent = moreOpen ? "More playlists ▴" : "More playlists ▾";
+      moreBtn.onclick = () => {
+        moreOpen = !moreOpen;
+        localStorage.setItem(LS_MORE_PL, moreOpen ? "1" : "0");
+        renderChips();
       };
-      c.appendChild(b);
+      c.appendChild(moreBtn);
+      const more = document.createElement("div");
+      more.className = "chips-more" + (moreOpen ? "" : " hidden");
+      for (const p of rest) more.appendChild(makeChip(p, false));
+      c.appendChild(more);
     }
   }
   function saveSel() {
     const arr = [...selected];
     localStorage.setItem(LS_SEL, JSON.stringify(arr));
-    api("/api/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ selected: arr }) }).catch(() => {});
+    api("/api/settings", { method: "PUT", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ selected: arr, auto_bpm_route: autoBpm }) }).catch(() => {});
   }
 
   // --- recording --------------------------------------------------------------
@@ -283,13 +354,13 @@ const APP_VERSION = "10";
     if (busy) return;
     if (rec) { stop(); return; }                         // tap again = stop early & identify
     identifyOnly = false;
-    if (!selected.size) {
+    if (!selected.size && !autoBpm) {
       if (opts.auto) return;                             // auto-listen needs a remembered playlist
       if (!confirm("No playlist selected – just identify the song?")) return;
       identifyOnly = true;
     }
     cancelled = false;
-    clog("start", { auto: !!opts.auto, playlists: selected.size });
+    clog("start", { auto: !!opts.auto, playlists: selected.size, autoBpm });
     label.innerHTML = "Starting mic…";
     showOverlay(true, "Starting mic…");
     try { await openMic(); }
@@ -355,30 +426,43 @@ const APP_VERSION = "10";
   async function send(blob, name) {
     busy = true; btn.classList.add("busy"); label.innerHTML = "Identifying…";
     const sentSel = identifyOnly ? [] : [...selected];     // snapshot at upload time
+    const sentAuto = !identifyOnly && autoBpm;
     try {
       const fd = new FormData();
       fd.append("audio", blob, name);
       fd.append("playlists", JSON.stringify(sentSel));
       fd.append("mode", identifyOnly ? "identify_only" : "add");
+      fd.append("auto_route", sentAuto ? "1" : "0");
       const r = await api("/api/identify", { method: "POST", body: fd });
       if (!r.match) { toast(r.message || "No match"); if (navigator.vibrate) navigator.vibrate([60, 60, 60]); return; }
       if (navigator.vibrate) navigator.vibrate(120);
       let entry = r.entry;
-      // Chips tapped while recording/identifying also count: add those now.
-      const have = new Set((entry.adds || []).map((a) => a.playlistId));
-      const late = [...selected].filter((id) => !have.has(id) && !sentSel.includes(id));
-      if (late.length && entry.ytm && entry.ytm.videoId) {
-        entry = await api(`/api/history/${entry.id}/add`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists: late }) });
+      // When auto BPM route is on, ignore multi-select / late chip taps for the add target.
+      if (!sentAuto) {
+        const have = new Set((entry.adds || []).map((a) => a.playlistId));
+        const late = [...selected].filter((id) => !have.has(id) && !sentSel.includes(id));
+        if (late.length && entry.ytm && entry.ytm.videoId) {
+          entry = await api(`/api/history/${entry.id}/add`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ playlists: late }) });
+        }
       }
       showResult(entry);
       const adds = entry.adds || [];
       const ok = adds.filter((a) => a.status === "added" || a.status === "already").length;
       const bad = adds.filter((a) => a.status === "pending" || a.status === "failed");
-      let msg = `${entry.song.title} – ${entry.song.artist}`;
+      const s = entry.song || {};
+      let msg = `${s.title} – ${s.artist}`;
+      if (s.bpm != null) {
+        const route = s.bpm_route === "fast" ? "Fast" : s.bpm_route === "slow" ? "Slow" : "?";
+        msg += ` · ${Math.round(s.bpm)} BPM → ${route}`;
+      } else if (sentAuto) {
+        msg += entry.bpm_note === "bpm_unknown"
+          ? " · BPM ? (used selected playlists)"
+          : " · BPM ?";
+      }
       if (ok) msg += ` → ${ok} playlist${ok > 1 ? "s" : ""}`;
       if (bad.length) msg += ` · ⚠ ${bad.length} not added (${bad[0].status})`;
       if (!adds.length) msg += " · ⚠ not added – no playlist selected";
-      toast(msg, bad.length || !adds.length ? 7000 : 3500);
+      toast(msg, bad.length || !adds.length || s.bpm == null ? 7000 : 4000);
       loadHistory();
     } catch (e) { clog("send-fail", e.message); toast(e.message, 6000); }
     finally { busy = false; identifyOnly = false; btn.classList.remove("busy"); label.innerHTML = IDLE_LABEL; }
@@ -389,6 +473,17 @@ const APP_VERSION = "10";
   $("#refresh").addEventListener("click", () => { loadPlaylists(true); loadStatus(); loadHistory(); });
 
   // --- result + history cards -------------------------------------------------
+  function bpmLine(s) {
+    if (!s) return "";
+    if (s.bpm == null || s.bpm === "") {
+      return `<div class="bpm unknown">BPM ?</div>`;
+    }
+    const n = Math.round(Number(s.bpm));
+    const route = s.bpm_route === "fast" ? "Fast" : s.bpm_route === "slow" ? "Slow" : "";
+    const label = route ? `${n} BPM → ${route}` : `${n} BPM`;
+    const src = s.bpm_source ? ` <span class="src">via ${esc(s.bpm_source)}</span>` : "";
+    return `<div class="bpm">${esc(label)}${src}</div>`;
+  }
   function card(h) {
     const s = h.song || {}, y = h.ytm || {};
     const img = s.thumbnail || y.thumbnail || "icons/icon-192.png";
@@ -405,6 +500,7 @@ const APP_VERSION = "10";
       <div class="meta">
         <div class="t">${esc(s.title)}</div>
         <div class="a">${esc(s.artist)}${s.album ? " · " + esc(s.album) : ""}</div>
+        ${bpmLine(s)}
         <div class="yt">${y.videoId ? `YT Music: <a href="${esc(y.url)}" target="_blank" rel="noopener">${esc(y.title)} – ${esc(y.artists)}</a>` : "No YouTube Music match"}</div>
         <div class="tags">${tags || '<span class="tag pending">Not added to any playlist – no playlist was selected</span>'}</div>
         ${errLine}
@@ -442,9 +538,13 @@ const APP_VERSION = "10";
       picker.innerHTML = '<div class="move-picker-empty">No playlists loaded.</div>';
       return;
     }
-    const rows = playlists.map((p) => {
+    const ordered = [
+      ...PRIMARY_IDS.map((id) => playlists.find((p) => p.id === id)).filter(Boolean),
+      ...playlists.filter((p) => !PRIMARY_IDS.includes(p.id)),
+    ];
+    const rows = ordered.map((p) => {
       const here = on.has(p.id);
-      return `<button type="button" data-act="moveto" data-pl="${esc(p.id)}" class="move-opt${here ? " on" : ""}"${here && on.size === 1 ? " disabled" : ""}>${esc(p.title)}${here ? " · current" : ""}</button>`;
+      return `<button type="button" data-act="moveto" data-pl="${esc(p.id)}" class="move-opt${here ? " on" : ""}"${here && on.size === 1 ? " disabled" : ""}>${esc(shortTitle(p))}${here ? " · current" : ""}</button>`;
     }).join("");
     picker.innerHTML = `<div class="move-picker-label">Move to playlist</div>${rows}<button type="button" data-act="movecancel" class="move-cancel">Cancel</button>`;
   }
@@ -534,7 +634,7 @@ const APP_VERSION = "10";
   }
   async function autoListen(explicit) {
     if (busy || rec) return;
-    if (!selected.size) { $("#hint").textContent = "Pick a playlist below, then use “Listen now” again."; return; }
+    if (!selected.size && !autoBpm) { $("#hint").textContent = "Pick a playlist below, then use “Listen now” again."; return; }
     const st = await micState();
     // explicit "Listen now" may ask for the mic; a plain launch only starts if already allowed
     if (st === "denied" || (!explicit && st !== "granted")) {
